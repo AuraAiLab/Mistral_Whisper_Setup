@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triton-inference-server
+  namespace: triton-inference
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: triton-inference-server
+  template:
+    metadata:
+      labels:
+        app: triton-inference-server
+    spec:
+      containers:
+      - name: triton-inference-server
+        image: nvcr.io/nvidia/tritonserver:22.12-py3
+        command: 
+          - tritonserver
+        args:
+          - --model-repository=/models/triton/models
+          - --log-verbose=1
+        ports:
+        - containerPort: 8000
+          name: http
+        - containerPort: 8001
+          name: grpc
+        - containerPort: 8002
+          name: metrics
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+          requests:
+            memory: "4Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: triton-models
+          mountPath: /models/triton/models
+      volumes:
+      - name: triton-models
+        persistentVolumeClaim:
+          claimName: triton-models-pvc
