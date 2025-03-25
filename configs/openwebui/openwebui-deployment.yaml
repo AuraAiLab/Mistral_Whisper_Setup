@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openwebui
+  namespace: openwebui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openwebui
+  template:
+    metadata:
+      labels:
+        app: openwebui
+    spec:
+      containers:
+      - name: openwebui
+        image: ghcr.io/open-webui/open-webui:main
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+        env:
+        - name: OLLAMA_API_BASE_URL
+          value: "http://ollama-service.ollama.svc.cluster.local:11434"
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "3000"
+        resources:
+          limits:
+            memory: "2Gi"
+          requests:
+            memory: "1Gi"
