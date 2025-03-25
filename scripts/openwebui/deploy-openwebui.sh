@@ -4,6 +4,9 @@
 
 set -e
 
+# Get the project root directory
+PROJECT_ROOT=$(pwd)
+
 echo "Deploying OpenWebUI with persistent configuration..."
 
 # Create namespace if it doesn't exist
@@ -12,15 +15,15 @@ kubectl create namespace openwebui --dry-run=client -o yaml | kubectl apply -f -
 
 # Apply PVC first
 echo "Creating persistent volume claim for OpenWebUI data..."
-kubectl apply -f ../configs/openwebui/openwebui-pvc.yaml
+kubectl apply -f ${PROJECT_ROOT}/configs/openwebui/openwebui-pvc.yaml
 
 # Apply ConfigMap with settings
 echo "Applying OpenWebUI configuration settings..."
-kubectl apply -f ../configs/openwebui/openwebui-configmap.yaml
+kubectl apply -f ${PROJECT_ROOT}/configs/openwebui/openwebui-configmap.yaml
 
 # Apply the deployment with references to PVC and ConfigMap
 echo "Deploying OpenWebUI with persistent configuration..."
-kubectl apply -f ../configs/openwebui/openwebui-deployment.yaml
+kubectl apply -f ${PROJECT_ROOT}/configs/openwebui/openwebui-deployment.yaml
 
 # Create a service for OpenWebUI if it doesn't exist
 echo "Creating service for OpenWebUI..."
