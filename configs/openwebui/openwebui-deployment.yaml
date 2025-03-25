@@ -13,31 +13,22 @@ spec:
       labels:
         app: openwebui
     spec:
+      volumes:
+      - name: openwebui-data
+        persistentVolumeClaim:
+          claimName: openwebui-data-pvc
       containers:
       - name: openwebui
         image: ghcr.io/open-webui/open-webui:main
         imagePullPolicy: Always
         ports:
         - containerPort: 3000
-        env:
-        - name: OLLAMA_API_BASE_URL
-          value: "http://ollama-service.ollama.svc.cluster.local:11434"
-        - name: HOST_OLLAMA_API_BASE_URL
-          value: "http://ollama-service.ollama.svc.cluster.local:11434"
-        - name: OPENAI_API_BASE_URL
-          value: "http://ollama-service.ollama.svc.cluster.local:11434"
-        - name: HOST
-          value: "0.0.0.0"
-        - name: PORT
-          value: "3000"
-        - name: OLLAMA_BASE_URL_BROWSER
-          value: "http://ollama-service.ollama.svc.cluster.local:11434"
-        - name: WEB_SEARCH_ENABLED
-          value: "true"
-        - name: WEB_SEARCH_DEFAULT
-          value: "duckduckgo"
-        - name: WEB_SEARCH_RESULT_COUNT
-          value: "5"
+        envFrom:
+        - configMapRef:
+            name: openwebui-config
+        volumeMounts:
+        - name: openwebui-data
+          mountPath: /app/backend/data
         resources:
           limits:
             memory: "2Gi"

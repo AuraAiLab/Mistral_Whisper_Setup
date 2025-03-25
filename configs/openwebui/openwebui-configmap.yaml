@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openwebui-config
+  namespace: openwebui
+data:
+  OLLAMA_API_BASE_URL: "http://ollama-service.ollama.svc.cluster.local:11434"
+  HOST_OLLAMA_API_BASE_URL: "http://ollama-service.ollama.svc.cluster.local:11434"
+  OPENAI_API_BASE_URL: "http://ollama-service.ollama.svc.cluster.local:11434"
+  OLLAMA_BASE_URL_BROWSER: "http://ollama-service.ollama.svc.cluster.local:11434"
+  HOST: "0.0.0.0"
+  PORT: "3000"
+  WEB_SEARCH_ENABLED: "true"
+  WEB_SEARCH_DEFAULT: "duckduckgo"
+  WEB_SEARCH_RESULT_COUNT: "5"
+  RESTORE_ENABLE_SETTINGS: "false"  # Prevent UI from overwriting these settings
