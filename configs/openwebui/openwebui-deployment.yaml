@@ -26,6 +26,12 @@ spec:
           value: "0.0.0.0"
         - name: PORT
           value: "3000"
+        - name: WEB_SEARCH_ENABLED
+          value: "true"
+        - name: WEB_SEARCH_DEFAULT
+          value: "duckduckgo"
+        - name: WEB_SEARCH_RESULT_COUNT
+          value: "5"
         resources:
           limits:
             memory: "2Gi"
