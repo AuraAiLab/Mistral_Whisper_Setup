@@ -13,10 +13,14 @@ spec:
       labels:
         app: openwebui
     spec:
+      hostAliases:
+      - ip: "10.104.100.227"
+        hostnames:
+        - "host.docker.internal"
+        - "ollama-service.ollama.svc.cluster.local"
       volumes:
       - name: openwebui-data
-        persistentVolumeClaim:
-          claimName: openwebui-data-pvc
+        emptyDir: {}
       containers:
       - name: openwebui
         image: ghcr.io/open-webui/open-webui:main

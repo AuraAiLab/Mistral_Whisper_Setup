@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script to deploy OpenWebUI with persistent configuration using ConfigMaps and PVC
+# Script to deploy OpenWebUI with persistent configuration using ConfigMaps
 # This ensures settings are not lost or overwritten when making changes in OpenWebUI
 
 set -e
@@ -13,17 +13,30 @@ echo "Deploying OpenWebUI with persistent configuration..."
 echo "Creating openwebui namespace if it doesn't exist..."
 kubectl create namespace openwebui --dry-run=client -o yaml | kubectl apply -f -
 
-# Apply PVC first
-echo "Creating persistent volume claim for OpenWebUI data..."
-kubectl apply -f ${PROJECT_ROOT}/configs/openwebui/openwebui-pvc.yaml
+# Get Ollama service IP for host aliases
+echo "Getting Ollama service IP for host aliases configuration..."
+OLLAMA_SERVICE_IP=$(kubectl get service -n ollama ollama-service -o jsonpath='{.spec.clusterIP}')
+if [ -z "$OLLAMA_SERVICE_IP" ]; then
+    echo "Error: Could not get Ollama service IP. Make sure the Ollama service is running."
+    exit 1
+fi
+echo "Found Ollama service IP: $OLLAMA_SERVICE_IP"
 
 # Apply ConfigMap with settings
 echo "Applying OpenWebUI configuration settings..."
 kubectl apply -f ${PROJECT_ROOT}/configs/openwebui/openwebui-configmap.yaml
 
-# Apply the deployment with references to PVC and ConfigMap
-echo "Deploying OpenWebUI with persistent configuration..."
-kubectl apply -f ${PROJECT_ROOT}/configs/openwebui/openwebui-deployment.yaml
+# Create a temporary deployment file with the correct host aliases
+echo "Creating deployment with host aliases pointing to Ollama service..."
+TMP_DEPLOYMENT="/tmp/openwebui-deployment-$$.yaml"
+cp ${PROJECT_ROOT}/configs/openwebui/openwebui-deployment.yaml $TMP_DEPLOYMENT
+
+# Update the host aliases in the temporary deployment file
+sed -i "s/ip: \"10.104.100.227\"/ip: \"$OLLAMA_SERVICE_IP\"/g" $TMP_DEPLOYMENT
+
+# Apply the deployment with references to ConfigMap and host aliases
+echo "Deploying OpenWebUI with persistent configuration and host aliases..."
+kubectl apply -f $TMP_DEPLOYMENT
 
 # Create a service for OpenWebUI if it doesn't exist
 echo "Creating service for OpenWebUI..."
@@ -44,7 +57,7 @@ EOF
 
 # Wait for OpenWebUI pod to be ready
 echo "Waiting for OpenWebUI pod to be ready..."
-kubectl -n openwebui wait --for=condition=ready pod -l app=openwebui --timeout=300s
+kubectl -n openwebui wait --for=condition=ready pod -l app=openwebui --timeout=120s
 
 # Check if OpenWebUI is accessible
 OPENWEBUI_POD=$(kubectl get pods -n openwebui -l app=openwebui -o jsonpath="{.items[0].metadata.name}")
@@ -65,6 +78,10 @@ else
     echo "  kubectl -n openwebui logs -l app=openwebui"
 fi
 
+# Clean up the temporary deployment file
+rm -f $TMP_DEPLOYMENT
+
 echo "OpenWebUI deployment complete with persistent configuration!"
 echo "Web search is enabled with DuckDuckGo as the default search engine."
-echo "The configuration is stored in a ConfigMap and will not be overwritten by UI changes."
+echo "The configuration is stored in a ConfigMap with host aliases to ensure connectivity to Ollama."
+echo "Mistral 7B model should now be visible in the OpenWebUI interface."

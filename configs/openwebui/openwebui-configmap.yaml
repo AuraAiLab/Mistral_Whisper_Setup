@@ -4,13 +4,43 @@ metadata:
   name: openwebui-config
   namespace: openwebui
 data:
+  # Core connection settings
   OLLAMA_API_BASE_URL: "http://ollama-service.ollama.svc.cluster.local:11434"
   HOST_OLLAMA_API_BASE_URL: "http://ollama-service.ollama.svc.cluster.local:11434"
   OPENAI_API_BASE_URL: "http://ollama-service.ollama.svc.cluster.local:11434"
   OLLAMA_BASE_URL_BROWSER: "http://ollama-service.ollama.svc.cluster.local:11434"
+  
+  # Web UI settings
   HOST: "0.0.0.0"
   PORT: "3000"
+  
+  # Web search settings
   WEB_SEARCH_ENABLED: "true"
   WEB_SEARCH_DEFAULT: "duckduckgo"
   WEB_SEARCH_RESULT_COUNT: "5"
-  RESTORE_ENABLE_SETTINGS: "false"  # Prevent UI from overwriting these settings
+  
+  # Critical setting - prevent UI from overwriting these settings
+  RESTORE_ENABLE_SETTINGS: "false"
+
+  # Ollama provider configuration  
+  OLLAMA_API_HOST: "ollama-service.ollama.svc.cluster.local"
+  OLLAMA_API_PORT: "11434"
+  OLLAMA_HOST: "ollama-service.ollama.svc.cluster.local"
+  OLLAMA_MODEL_LIST_REFRESH_INTERVAL: "30"
+  
+  # Force enable Ollama only
+  ENABLED_OLLAMA: "true"
+  DISABLED_OLLAMA: "false"
+  ENABLED_OPENAI: "false"
+  ENABLED_OPENAI_API: "false"
+  ENABLED_ANTHROPIC: "false"
+  ENABLED_GROQ: "false"
+  ENABLED_GOOGLE: "false"
+  
+  # Default model and provider settings
+  DEFAULT_MODELS: "ollama:mistral:7b"
+  AUTH_PROVIDERS: "ollama"
+  DEFAULT_CHAT_PRESET: "ollama:mistral:7b"
+  DEFAULT_MODEL: "mistral:7b"
+  DEFAULT_PRESET: "ollama"
+  DEFAULT_PROVIDER: "ollama"

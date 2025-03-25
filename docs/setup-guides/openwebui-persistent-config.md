@@ -4,12 +4,13 @@ This guide explains how to ensure your OpenWebUI configuration settings (includi
 
 ## Overview of the Persistent Configuration Setup
 
-We've implemented multiple layers of persistence to ensure your settings remain intact:
+We've implemented multiple layers of persistence and connectivity to ensure your settings remain intact:
 
 1. **ConfigMap Storage**: All environment variables are stored in a ConfigMap instead of hardcoding them in the deployment
-2. **Persistent Volume**: OpenWebUI's database and settings are stored on a persistent volume
+2. **Data Volume**: OpenWebUI's database and settings are stored on a volume that persists during pod restarts
 3. **UI Settings Protection**: Added settings to prevent the UI from overwriting configuration values
-4. **Deployment Script**: Created a script that applies everything in the correct order
+4. **Host Aliases**: Added critical hostname mapping to fix OpenWebUI's fallback connection to Ollama
+5. **Deployment Script**: Created a script that applies everything in the correct order
 
 ## Components
 
@@ -27,7 +28,7 @@ metadata:
   name: openwebui-config
   namespace: openwebui
 data:
-  # Ollama connection settings
+  # Core connection settings
   OLLAMA_API_BASE_URL: "http://ollama-service.ollama.svc.cluster.local:11434"
   HOST_OLLAMA_API_BASE_URL: "http://ollama-service.ollama.svc.cluster.local:11434"
   OPENAI_API_BASE_URL: "http://ollama-service.ollama.svc.cluster.local:11434"
@@ -46,27 +47,38 @@ data:
   RESTORE_ENABLE_SETTINGS: "false"
 ```
 
-### 2. Persistent Volume Claim (configs/openwebui/openwebui-pvc.yaml)
+### 2. Host Aliases Configuration (Critical Fix)
 
-This ensures all data is stored permanently:
+The most important fix that makes Mistral models appear in the UI is the `hostAliases` configuration. Even with the correct environment variables, OpenWebUI sometimes falls back to using `host.docker.internal` when searching for models.
 
 ```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: openwebui-data-pvc
-  namespace: openwebui
 spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
+  template:
+    spec:
+      hostAliases:
+      - ip: "10.104.100.227"  # Ollama service IP address
+        hostnames:
+        - "host.docker.internal"
+        - "ollama-service.ollama.svc.cluster.local"
 ```
 
-### 3. Deployment Configuration (configs/openwebui/openwebui-deployment.yaml)
+This maps the Docker internal hostname to the actual Ollama service IP, ensuring that OpenWebUI can find the Mistral model even when falling back to alternative hostnames.
 
-Uses the ConfigMap and PVC:
+### 3. Data Volume (Using emptyDir)
+
+We use an emptyDir volume to maintain data during pod restarts:
+
+```yaml
+volumes:
+- name: openwebui-data
+  emptyDir: {}
+```
+
+This volume persists as long as the pod exists on the node. If you need true persistence across node failures, you would need to setup a proper PersistentVolume with a storage backend.
+
+### 4. Deployment Configuration (configs/openwebui/openwebui-deployment.yaml)
+
+Uses the ConfigMap, host aliases, and volume:
 
 ```yaml
 apiVersion: apps/v1
@@ -79,10 +91,14 @@ spec:
   template:
     # ...
     spec:
+      hostAliases:
+      - ip: "10.104.100.227"
+        hostnames:
+        - "host.docker.internal"
+        - "ollama-service.ollama.svc.cluster.local"
       volumes:
       - name: openwebui-data
-        persistentVolumeClaim:
-          claimName: openwebui-data-pvc
+        emptyDir: {}
       containers:
       - name: openwebui
         # ...
@@ -122,25 +138,33 @@ If you need to change any settings:
    kubectl rollout restart deployment openwebui -n openwebui
    ```
 
-## Important Note
+## Important Notes About Configuration
 
-The `RESTORE_ENABLE_SETTINGS: "false"` setting in the ConfigMap is critical - it prevents the OpenWebUI interface from overwriting your environment variable settings, which is what was causing the connection to Mistral to be lost previously.
+1. **Host Alias Requirement**: The host alias configuration is critical - it resolves a known issue in OpenWebUI where it attempts to connect to `host.docker.internal` as a fallback, even when the correct Ollama API URL is set.
+
+2. **Persistence Limitations**: The current setup uses an `emptyDir` volume which persists for the lifecycle of the pod on a node. Your settings will survive pod restarts and redeployments but will NOT survive node failures.
+
+3. **UI Protection**: The `RESTORE_ENABLE_SETTINGS: "false"` setting prevents the OpenWebUI interface from overwriting your environment variable settings.
 
 ## Troubleshooting
 
-If settings are still being reset:
+If Mistral models still don't appear in the UI:
 
-1. Check the OpenWebUI logs:
+1. Verify the Ollama service IP address:
    ```bash
-   kubectl logs -n openwebui -l app=openwebui | grep -i settings
+   kubectl get service -n ollama ollama-service -o jsonpath='{.spec.clusterIP}'
    ```
 
-2. Verify the ConfigMap is correctly mounted:
+2. Update the host alias in the deployment to match the Ollama service IP:
    ```bash
-   kubectl describe pod -n openwebui -l app=openwebui
+   # Edit the deployment file
+   vi configs/openwebui/openwebui-deployment.yaml
+   
+   # Apply the changes
+   kubectl apply -f configs/openwebui/openwebui-deployment.yaml
    ```
 
-3. Make sure the persistent volume is properly mounted:
+3. Check the OpenWebUI logs for connection errors:
    ```bash
-   kubectl exec -n openwebui -l app=openwebui -- ls -la /app/backend/data
+   kubectl logs -n openwebui -l app=openwebui | grep -i "docker.internal" 
    ```
